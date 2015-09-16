@@ -1,0 +1,124 @@
+body {
+	font-family: Arial, Helvetica, Verdana, sans-serif;
+	background-color: #000;
+	color: #fff;
+	position: fixed;
+	height: 100%;
+	width: 100%;
+	margin: 0;
+	perspective: 600px;
+	perspective-origin: 50% 55%;
+	
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	-webkit-user-select: none;
+	-moz-user-select: none;
+	-ms-user-select: none;
+	-user-select: none;
+}
+
+.nav {
+	background-color: rgba(80,80,80,0.3);
+	width: 4%;
+	padding-bottom: 10%;
+	position: absolute;
+	top: 50%;
+	transform: translateY(-50%);
+	font-size: 2em;
+	color: #ddd;
+}
+.nav:hover {
+	color: #fff;
+}
+#right {
+	right: 0;
+	border-top-left-radius: 100% 50%;
+	border-bottom-left-radius: 100% 50%;
+	border-left: 2px solid rgba(255,255,255,0.5);
+}
+#left {
+	left: 0;
+	border-top-right-radius: 100% 50%;
+	border-bottom-right-radius: 100% 50%;
+	border-right: 2px solid rgba(255,255,255,0.5);
+}
+.text {
+	position: absolute;
+	top: 50%;
+	transform: translateY(-50%);
+	width: 100%;
+	text-align: center;
+}
+.rotRight {
+	transform: rotateY(10deg);
+}
+.rotLeft {
+	transform: rotateY(-10deg);
+}
+.wall {
+	transition-delay: 0.1s;
+	transition: 0.5s;
+	width: 90%;
+	height: 100%;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	overflow: hidden;
+}
+.board {
+	width: 100%;
+}
+.row {
+	max-width: 100%;
+	margin: 15px 0px;
+	position: relative;
+}
+.scrollContainer {
+	position: absolute;
+}
+.mirror  img {
+	transform: scaleY(-1);
+	-webkit-filter: blur(1px);
+}
+.photo {
+	height: 120px;
+}
+.menu {
+	background-color: #500;
+	height: 20px;
+}
+.invisible {
+	opacity: 0;
+}
+.menuitem {
+	background-color: #050;
+	opacity: 0.5;
+	width: 150px;
+	height: 100%;
+	margin: 0px 10px;
+	position: relative;
+	display: inline-block;	
+}
+.object {
+	perspective: 600px;
+	width: 180px;
+	height: 100%;
+	margin: 0px 10px;
+	position: absolute;
+	text-align: center;
+	background-color: #222;
+}
+.cleft {
+	left: -200px;
+}
+.cright {
+	left: 1600px;
+}
+.bottom {
+	overflow: visible;
+}
+.bottom > img {
+	/*-webkit-box-reflect: below 10px;*/
+	   -webkit-box-reflect: below 15px -webkit-gradient(linear, left top, left bottom, from(transparent), color-stop(20%, transparent) , to(rgba(0, 0, 0, 0.5)));
+}
