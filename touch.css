@@ -88,9 +88,6 @@ body {
 	background-color: #500;
 	height: 20px;
 }
-.invisible {
-	opacity: 0;
-}
 .menuitem {
 	background-color: #050;
 	opacity: 0.5;
