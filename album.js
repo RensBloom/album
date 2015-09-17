@@ -1,25 +1,30 @@
 $(document).ready(function(){
 var w = window.innerWidth || document.documentElement.clientWidth;
 
+var scrollX = 0;
 var activeTouches = 0;
 var dragTouchId = -1;
-var clicked = false, animating = false; dragged = false, clickX = 0, oldCursorX = 0, cursorX = 0, idMin = 0, numImages = 0;
+var rotating = false;
+var clicked = false, animating = false; dragged = false, clickX = 0, oldCursorX = 0, cursorX = 0, numImages = 0;
 var grid = parseInt($(".object").css("width")) + parseInt($(".object").css("margin-left")) + parseInt($(".object").css("margin-right"));
 var animationLoop;
-var imgPerRow = 10;
-var idMax = 3*imgPerRow-1;
+var imgPerRow = 8;        //number of visible images per row
+var colMin = -2;          //preload 2 images
+var colMax = imgPerRow+1; //preload 2 images
+var idMin = -6;
+var idMax = 3*colMax+2;
 var numRows = $(".scrollContainer").length;
-
 var items = [];
 var numImages = 0;
+var scrollMax = 0;
 
-$(".wall").css({"max-width":((imgPerRow-2)*grid)+"px"});
+$(".wall").css({"max-width":(imgPerRow*grid)+"px"});
 $(".object").css({"transform":"translate(0px,0)"});
 $(".object").attr("offset",0);
 
 it = 0;
 $(".scrollContainer").each(function() {
-	for (var i = 1; i < imgPerRow; i++) {
+	for (var i = 1; i < imgPerRow+2; i++) {
 		var newDiv = $("<div/>")   // creates a div element
 					 .addClass("object")  // add a class
 					 .attr("id",(it+i*numRows))
@@ -32,94 +37,40 @@ $(".scrollContainer").each(function() {
 	}
 	it++;
 });
-$(".object").addClass("cleft");
 
-var transEndLeft = function(time, dx, div) {
-	idMin++;
-	offset = 0;
-	startX = (imgPerRow-1)*grid;
-	goalX = -grid;
-	animTime = Math.abs((goalX-startX)*time/dx);
-	div.attr("id", ++idMax);
-	if (idMax < numImages) {
-		div.html("<img src=\""+ items[idMax].src + "\" draggable=\"false\">");
-	} else {
-		div.html("");
-	}
-	div.css({"transform":"translate(" + startX + "px,0)", "transition":"0s", "transition-timing-function":"linear"});
-	div.focus();
-	if (animating) {
-		div.css({"transform":"translate(" + goalX + "px,0)", "transition":animTime+"s", "transition-timing-function":"linear"});
-	}
-}
-
-var doThis = function(dx, time) {
-	$(".object").one("transitionend webkitTransitionEnd", function(){
-		transEndLeft(time, dx, $(this));
-	});
-
-	$(".object").each(function() {
-		oldX = parseInt($(this).attr("offset"));
-		goalX = -200;
-		if ($(this).hasClass("cright")) {
-			goalX = -imgPerRow*grid;
-		}
-		animTime = Math.abs((goalX-oldX)*time/dx);
-
-		//$(this).attr("offset",goalX);
-		$(this).css({"transform":"translate(" + goalX + "px,0)", "transition":animTime+"s", "transition-timing-function":"linear"});
-	});
-}
-
-var stopThis = function() {
-	gridOffset = Math.round($(".object").first().css('transform').split(',')[4]) % grid;
-	if (!gridOffset) {
-		gridOffset = 1;
-	}
-	$(".object").each(function() {
-		posx = Math.round($(this).css('transform').split(',')[4]);
-		if (!posx) {
-			posx = 0;
-		}
-		correction = (gridOffset - (posx % grid)) % grid;
-		if (correction < grid*-0.5) {
-			correction += grid;
-		} else if (correction > grid*0.5) {
-			correction -= grid;
-		}
-		console.log(correction);
-		//posx += correction;
-		$(this).attr("offset",posx);
-		$(this).css({"transform":"translate(" + posx + "px,0)", "transition":"0s", "transition-timing-function":"linear"});
-	});
-}
-
-$("#right").hover(
+//handle left/right button presses
+$("#right").click(
 	function() {
 		animating = true;
-		$(".wall").addClass("rotRight");
-		doThis(-100, 0.5);
-	},
+		scrollX += 800;
+		if (scrollX > scrollMax) {
+			scrollX = scrollMax;
+		}
+		autoAddImages(800);
+		updateScroll(1);
+		setTimeout(function() {
+			console.log("seconde");
+			autoRemoveImages();
+		},1000);
+	}
+);
+$("#left").click(
 	function() {
-		animating = false;
-		$(".wall").removeClass("rotRight");
-		stopThis();
+		animating = true;
+		scrollX -= 800;
+		if (scrollX < -2*grid) {
+			scrollX = -2*grid;
+		}
+		autoAddImages(-800);
+		updateScroll(1);
+		setTimeout(function() {
+			autoRemoveImages();
+		},1000);
 	}
 );
 
-$("#left").hover(
-	function() {
-		animating = true;
-		$(".wall").addClass("rotLeft");
-		scroll(100, 0.2);
-	},
-	function() {
-		animating = false;
-		$(".wall").removeClass("rotLeft");
-	}
-);
-
-$(".scrollContainer").on({
+//handle dragging with mouse & touch events
+$("body").on({
 	'mousemove': function(e) {
 		oldCursorX = cursorX;
 		cursorX = e.pageX;
@@ -135,12 +86,17 @@ $(".scrollContainer").on({
 	},
 	'mouseup': function() {
 		clicked = false;
+		setTimeout(function() {
+			dragged = false;
+		},100);
 		endDraggedScrolling();
+	},
+	'mousewheel': function(e) {
+		updateScrolledScroll(Math.floor(e.originalEvent.wheelDelta));
 	},
 	'touchmove': function(e) {
 		var touches = e.originalEvent.touches;
 		for (var i = 0; i < touches.length; i++) {
-			alert(touches[i].identifier);
 			if (touches[i].identifier == dragTouchId) {
 				oldCursorX = cursorX;
 				cursorX = touches[i].pageX;
@@ -159,120 +115,170 @@ $(".scrollContainer").on({
 			clickX = touches[0].pageX;
 			cursorX = touches[0].pageX;
 		} else {
-			clicked = false;
-			dragTouchId = -1;
+			//clicked = false;
+			//dragTouchId = -1;
 		}
 	},
 	'touchend': function() {
 		if (--activeTouches == 0) {
 			clicked = false;
-			endDraggedScrolling();	
+			endDraggedScrolling();
+			dragged = false;			
 		}
 	}
 });
+
+var updateScrolledScroll = function(dX) {
+	scrollX -= dX;
+	updateToScrollX();
+}
 
 var updateDraggedScroll = function() {
 	dX = cursorX-oldCursorX;
-	
-	gridOffset = Math.round($(".object").first().attr("offset")) % grid;
-	if (!gridOffset) {
-		gridOffset = 1;
-	}	
-	$(".object").each(function() {
-		oldX = parseInt($(this).attr("offset"));
-		correction = (gridOffset - (oldX % grid)) % grid;
-		if (correction < grid*-0.5) {
-			correction += grid;
-		} else if (correction > grid*0.5) {
-			correction -= grid;
-		}
-		oldX += correction;
-
-		
-		newX = (oldX+dX);
-		if (newX < -200 && idMax < numImages-1) {
-			idMin++;
-			idMax++;
-			newX += (imgPerRow*grid);
-			animTime = 0;
-			$(this).html("<img src=\""+ items[idMax].src + "\" draggable=\"false\">");
-			$(this).attr("id", idMax);
-		} else if (newX > imgPerRow*grid-200 && idMin > 0) {
-			idMin--;
-			idMax--;
-			newX -= (imgPerRow*grid);
-			animTime = 0;
-			$(this).html("<img src=\""+ items[idMin].src + "\" draggable=\"false\">");
-			$(this).attr("id", idMin);
-		}
-		$(this).attr("offset",newX);
-		$(this).css({"transform":"translate(" + newX + "px,0)", "transition":"0s", "transition-timing-function":"linear"});
-	});
-
-	
+	scrollX -= dX;
+	updateToScrollX();
+	rotating = true;
 	$(".rotate").css({"transform":"rotateY("+Math.min(10,Math.max(-10,(cursorX-clickX)/-20))+"deg)", "transition":"0s"});
 	$(".wall").addClass("rotate");
 }
-var endDraggedScrolling = function() {
-	$(".rotate").prop('style').removeProperty("transition");
-	$(".rotate").prop('style').removeProperty("transform");
-	$(".wall").removeClass("rotate");
-}
 
-var scroll = function(dx, time) {
-	$(".object").each(function() {
-		oldX = parseInt($(this).attr("offset"));
-		newX = (oldX+dx);
-		animTime = time;
-		if (newX < -grid*1.5 && idMax < numImages-1) {
-			idMin++;
-			idMax++;
-			newX += (imgPerRow*grid);
-			animTime = 0;
-			$(this).html("<img src=\""+ items[idMax].src + "\" draggable=\"false\">");
-			$(this).attr("id", idMax);
-		} else if (newX >(imgPerRow-1.5)*grid && idMin > 0) {
-			idMin--;
-			idMax--;
-			newX -= (imgPerRow*grid);
-			animTime = 0;
-			$(this).html("<img src=\""+ items[idMin].src + "\" draggable=\"false\">");
-			$(this).attr("id", idMin);
-		}
-		$(this).attr("offset",newX);
-		$(this).css({"transform":"translate(" + newX + "px,0)", "transition":animTime+"s", "transition-timing-function":"linear"});
-	});
-	if (animating) {
-		setTimeout(function(){scroll(dx, time);}, time*1000);
+var updateToScrollX = function() {
+	if (scrollX < -2*grid) {
+		scrollX = -2*grid;
+	} else if (scrollX > scrollMax) {
+		scrollX = scrollMax;
 	}
-
+	autoRemoveImages();
+	autoAddImages();
+	updateScroll(0);
 }
 
+var endDraggedScrolling = function() {
+	if (rotating) {
+		rotating = false;
+		$(".rotate").prop('style').removeProperty("transition");
+		$(".rotate").prop('style').removeProperty("transform");
+		$(".wall").removeClass("rotate");
+	}
+}
+
+//scroll all images to their correct positions
+var updateScroll = function(animationTime) {
+	$(".object").each(function() {
+		offset = parseInt($(this).attr("offset"));
+		newX = (offset-scrollX);
+		$(this).css({"transform":"translate(" + newX + "px,0)", "transition":animationTime+"s"});
+	});
+}
+
+//add images that will be visible in shorthand
+var autoAddImages = function(offset) {
+	while (scrollX > (colMax - imgPerRow)*grid) {
+		colMax++;
+		it = 0;
+		$(".scrollContainer").each(function() {
+			idMax++;
+			if (idMax >= 0 && idMax < numImages) {
+				var newDiv = $("<div/>")   // creates a div element
+							 .addClass("object")  // add a class
+							 .attr("id",(idMax))
+							 .attr("offset",(colMax*grid))
+							 .html("<img src=\""+ items[idMax].msrc + "\" draggable=\"false\">")
+							 .css({"transform":"translate(" + (colMax*grid-scrollX+offset) + "px,0)"});
+				
+				 if (it == 2) {
+					newDiv.addClass("bottom");
+				}
+				$(this).append(newDiv);
+				newDiv.focus();
+				newDiv.click(function() {
+					openPswp(parseInt($(this).attr("id")));
+				});
+			}
+			it++;
+		});
+	}
+	while (scrollX < (colMin+1)*grid) {
+		colMin--;
+		it = 0;
+		$(".scrollContainer").each(function() {
+			idMin--;
+			if (idMin >= 0 && idMin < numImages) {
+				var newDiv = $("<div/>")   // creates a div element
+							 .addClass("object")  // add a class
+							 .attr("id",(idMin))
+							 .attr("offset",(colMin*grid))
+							 .html("<img src=\""+ items[idMin].msrc + "\" draggable=\"false\">")
+							 .css({"transform":"translate(" + (colMin*grid-scrollX+offset) + "px,0)"});
+				 if (it == 2) {
+					newDiv.addClass("bottom");
+				}
+				$(this).append(newDiv);
+				newDiv.focus();
+				newDiv.click(function() {
+					openPswp(parseInt($(this).attr("id")));
+				});
+			}
+			it++;
+		});
+	}
+}
+
+//remove photo objects far outside screen
+var autoRemoveImages = function() {
+	while (scrollX <= (colMax - imgPerRow-2)*grid) {
+		colMax--;
+		idMax -= 3;
+		$(".object").each(function() {
+			offset = parseInt($(this).attr("offset"));
+			if (offset > (colMax*grid)) {
+				$(this).remove();			
+			}
+		});
+	}
+	while (scrollX >= (colMin+3)*grid) {
+		colMin++;
+		console.log("min++: " + colMin);
+		idMin += 3;
+		$(".object").each(function() {
+			offset = parseInt($(this).attr("offset"));
+			if (offset < (colMin*grid)) {
+				$(this).remove();			
+			}
+		});
+	}
+}
+
+//Load image filenames
 $.get("images.php", function(data){
 	items = jQuery.parseJSON(data);
 	numImages = items.length;
+	scrollMax = (numImages/3-2)*grid;
 	$(".object").each(function() {
 		id = parseInt($(this).attr("id"));
 		if (id < numImages) {
-			$(this).html("<img src=\""+ items[id].src + "\" draggable=\"false\">");
+			$(this).html("<img src=\""+ items[id].msrc + "\" draggable=\"false\">");
 		}
 	});
 });
 
-
-
+//Load photoswipe element (full-screen photo viewer)
 var pswpElement = document.querySelectorAll('.pswp')[0];
 
-$(".object").click(function() {
-	var options = {// define options (if needed)
-		index: (parseInt($(this).attr("id"))) // start at first slide
-	};
+//open PhotoSwipe with photo-id
+var openPswp = function(id) {
 	if (!dragged) {
+		var options = {// define options
+			index: (id) // start at correct slide
+		};
 		// Initializes and opens PhotoSwipe
 		var gallery = new PhotoSwipe( pswpElement, PhotoSwipeUI_Default, items, options);
 		gallery.init();
 	}
-	dragged = false;
+}
+
+$(".object").click(function() {
+	openPswp(parseInt($(this).attr("id"))); // start at first slide
 });
 
 
