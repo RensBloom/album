@@ -5,16 +5,18 @@ var scrollX = 0;
 var activeTouches = 0;
 var dragTouchId = -1;
 var rotating = false;
-var clicked = false, animating = false; dragged = false, clickX = 0, oldCursorX = 0, cursorX = 0, idMin = 0, numImages = 0;
+var clicked = false, animating = false; dragged = false, clickX = 0, oldCursorX = 0, cursorX = 0, numImages = 0;
 var grid = parseInt($(".object").css("width")) + parseInt($(".object").css("margin-left")) + parseInt($(".object").css("margin-right"));
 var animationLoop;
 var imgPerRow = 8;        //number of visible images per row
 var colMin = -2;          //preload 2 images
 var colMax = imgPerRow+1; //preload 2 images
+var idMin = -6;
 var idMax = 3*colMax+2;
 var numRows = $(".scrollContainer").length;
 var items = [];
 var numImages = 0;
+var scrollMax = 0;
 
 $(".wall").css({"max-width":(imgPerRow*grid)+"px"});
 $(".object").css({"transform":"translate(0px,0)"});
@@ -41,6 +43,9 @@ $("#right").click(
 	function() {
 		animating = true;
 		scrollX += 800;
+		if (scrollX > scrollMax) {
+			scrollX = scrollMax;
+		}
 		autoAddImages(800);
 		updateScroll(1);
 		setTimeout(function() {
@@ -53,6 +58,9 @@ $("#left").click(
 	function() {
 		animating = true;
 		scrollX -= 800;
+		if (scrollX < -2*grid) {
+			scrollX = -2*grid;
+		}
 		autoAddImages(-800);
 		updateScroll(1);
 		setTimeout(function() {
@@ -61,9 +69,7 @@ $("#left").click(
 	}
 );
 
-
-
-//handle dragging with mouse & on touch screens
+//handle dragging with mouse & touch events
 $(".scrollContainer").on({
 	'mousemove': function(e) {
 		oldCursorX = cursorX;
@@ -80,6 +86,9 @@ $(".scrollContainer").on({
 	},
 	'mouseup': function() {
 		clicked = false;
+		setTimeout(function() {
+			dragged = false;
+		},100);
 		endDraggedScrolling();
 	},
 	'touchmove': function(e) {
@@ -110,7 +119,8 @@ $(".scrollContainer").on({
 	'touchend': function() {
 		if (--activeTouches == 0) {
 			clicked = false;
-			endDraggedScrolling();	
+			endDraggedScrolling();
+			dragged = false;			
 		}
 	}
 });
@@ -118,6 +128,11 @@ $(".scrollContainer").on({
 var updateDraggedScroll = function() {
 	dX = cursorX-oldCursorX;
 	scrollX -= dX;
+	if (scrollX < -2*grid) {
+		scrollX = -2*grid;
+	} else if (scrollX > scrollMax) {
+		scrollX = scrollMax;
+	}
 	autoRemoveImages();
 	autoAddImages();
 	updateScroll(0);
@@ -125,6 +140,7 @@ var updateDraggedScroll = function() {
 	$(".rotate").css({"transform":"rotateY("+Math.min(10,Math.max(-10,(cursorX-clickX)/-20))+"deg)", "transition":"0s"});
 	$(".wall").addClass("rotate");
 }
+
 var endDraggedScrolling = function() {
 	if (rotating) {
 		rotating = false;
@@ -134,6 +150,7 @@ var endDraggedScrolling = function() {
 	}
 }
 
+//scroll all images to their correct positions
 var updateScroll = function(animationTime) {
 	$(".object").each(function() {
 		offset = parseInt($(this).attr("offset"));
@@ -142,9 +159,11 @@ var updateScroll = function(animationTime) {
 	});
 }
 
+//add images that will be visible in shorthand
 var autoAddImages = function(offset) {
 	while (scrollX > (colMax - imgPerRow)*grid) {
 		colMax++;
+		it = 0;
 		$(".scrollContainer").each(function() {
 			idMax++;
 			if (idMax >= 0 && idMax < numImages) {
@@ -160,12 +179,16 @@ var autoAddImages = function(offset) {
 				}
 				$(this).append(newDiv);
 				newDiv.focus();
+				newDiv.click(function() {
+					openPswp(parseInt($(this).attr("id")));
+				});
 			}
 			it++;
 		});
 	}
 	while (scrollX < (colMin+1)*grid) {
 		colMin--;
+		it = 0;
 		$(".scrollContainer").each(function() {
 			idMin--;
 			if (idMin >= 0 && idMin < numImages) {
@@ -180,15 +203,17 @@ var autoAddImages = function(offset) {
 				}
 				$(this).append(newDiv);
 				newDiv.focus();
+				newDiv.click(function() {
+					openPswp(parseInt($(this).attr("id")));
+				});
 			}
 			it++;
 		});
 	}
 }
 
+//remove photo objects far outside screen
 var autoRemoveImages = function() {
-	console.log("scrollx" + scrollX + " colmin " + colMin);
-
 	while (scrollX <= (colMax - imgPerRow-2)*grid) {
 		colMax--;
 		idMax -= 3;
@@ -201,6 +226,7 @@ var autoRemoveImages = function() {
 	}
 	while (scrollX >= (colMin+3)*grid) {
 		colMin++;
+		console.log("min++: " + colMin);
 		idMin += 3;
 		$(".object").each(function() {
 			offset = parseInt($(this).attr("offset"));
@@ -215,6 +241,7 @@ var autoRemoveImages = function() {
 $.get("images.php", function(data){
 	items = jQuery.parseJSON(data);
 	numImages = items.length;
+	scrollMax = (numImages/3-2)*grid;
 	$(".object").each(function() {
 		id = parseInt($(this).attr("id"));
 		if (id < numImages) {
@@ -226,16 +253,20 @@ $.get("images.php", function(data){
 //Load photoswipe element (full-screen photo viewer)
 var pswpElement = document.querySelectorAll('.pswp')[0];
 
-$(".object").click(function() {
-	var options = {// define options (if needed)
-		index: (parseInt($(this).attr("id"))) // start at first slide
-	};
+//open PhotoSwipe with photo-id
+var openPswp = function(id) {
 	if (!dragged) {
+		var options = {// define options
+			index: (id) // start at correct slide
+		};
 		// Initializes and opens PhotoSwipe
 		var gallery = new PhotoSwipe( pswpElement, PhotoSwipeUI_Default, items, options);
 		gallery.init();
 	}
-	dragged = false;
+}
+
+$(".object").click(function() {
+	openPswp(parseInt($(this).attr("id"))); // start at first slide
 });
 
 
