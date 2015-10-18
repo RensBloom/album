@@ -17,6 +17,10 @@ var numRows = $(".scrollContainer").length;
 var items = [];
 var numImages = 0;
 var scrollMax = 0;
+var eTime1 = 0;
+var eTime2 = 0;
+var eX1 = 0;
+var eX2 = 0;
 
 $(".wall").css({"max-width":(imgPerRow*grid)+"px"});
 $(".object").css({"transform":"translate(0px,0)"});
@@ -49,7 +53,6 @@ $("#right").click(
 		autoAddImages(800);
 		updateScroll(1);
 		setTimeout(function() {
-			console.log("seconde");
 			autoRemoveImages();
 		},1000);
 	}
@@ -61,11 +64,6 @@ $("#left").click(
 		if (scrollX < -2*grid) {
 			scrollX = -2*grid;
 		}
-		autoAddImages(-800);
-		updateScroll(1);
-		setTimeout(function() {
-			autoRemoveImages();
-		},1000);
 	}
 );
 
@@ -78,18 +76,37 @@ $("body").on({
 			dragged = true;
 			updateDraggedScroll();
 		}
+		eTime1 = eTime2;
+		eX1 = eX2;
+		eX2 = cursorX;
+		eTime2 = $.now();
+		if (clicked) {
+			dragged = true;
+			updateDraggedScroll();
+		}
+		
 	},
 	'mousedown': function(e) {
 		clicked = true;
 		clickX = e.pageX;
 		cursorX = e.pageX;
+		eX1 = cursorX;
+		eX2 = cursorX;
+		eTime1 = eTime2 = $.now();
 	},
 	'mouseup': function() {
 		clicked = false;
-		setTimeout(function() {
-			dragged = false;
-		},100);
 		endDraggedScrolling();
+		dragged = false;
+		eTime2 = $.now();
+		dT = Math.max(0.001, (eTime2 - eTime1)/500);
+		dX = -Math.round((eX2 - eX1)/dT);
+		scrollX += dX;
+		autoAddImages(dX);
+		updateScroll(1);
+		setTimeout(function() {
+			autoRemoveImages();
+		},1000);
 	},
 	'mousewheel': function(e) {
 		updateScrolledScroll(Math.floor(e.originalEvent.wheelDelta));
@@ -100,6 +117,10 @@ $("body").on({
 			if (touches[i].identifier == dragTouchId) {
 				oldCursorX = cursorX;
 				cursorX = touches[i].pageX;
+				eTime1 = eTime2;
+				eX1 = eX2;
+				eX2 = cursorX;
+				eTime2 = $.now();
 				if (clicked) {
 					dragged = true;
 					updateDraggedScroll();
@@ -114,6 +135,9 @@ $("body").on({
 			clicked = true;
 			clickX = touches[0].pageX;
 			cursorX = touches[0].pageX;
+			eX1 = cursorX;
+			eX2 = cursorX;
+			eTime1 = eTime2 = $.now();
 		} else {
 			//clicked = false;
 			//dragTouchId = -1;
@@ -123,7 +147,17 @@ $("body").on({
 		if (--activeTouches == 0) {
 			clicked = false;
 			endDraggedScrolling();
-			dragged = false;			
+			dragged = false;
+			eTime2 = $.now();
+			dT = Math.max(0.001, (eTime2 - eTime1)/500);
+			dX = -Math.round((eX2 - eX1)/dT);
+			scrollX += dX;
+			autoAddImages(dX);
+			updateScroll(1);
+			setTimeout(function() {
+				autoRemoveImages();
+			},1000);
+	
 		}
 	}
 });
@@ -138,7 +172,7 @@ var updateDraggedScroll = function() {
 	scrollX -= dX;
 	updateToScrollX();
 	rotating = true;
-	$(".rotate").css({"transform":"rotateY("+Math.min(10,Math.max(-10,(cursorX-clickX)/-20))+"deg)", "transition":"0s"});
+	//$(".rotate").css({"transform":"rotateY("+Math.min(10,Math.max(-10,(cursorX-clickX)/-20))+"deg)", "transition":"0s"});
 	$(".wall").addClass("rotate");
 }
 
@@ -156,8 +190,8 @@ var updateToScrollX = function() {
 var endDraggedScrolling = function() {
 	if (rotating) {
 		rotating = false;
-		$(".rotate").prop('style').removeProperty("transition");
-		$(".rotate").prop('style').removeProperty("transform");
+		//$(".rotate").prop('style').removeProperty("transition");
+	//	$(".rotate").prop('style').removeProperty("transform");
 		$(".wall").removeClass("rotate");
 	}
 }
@@ -170,6 +204,16 @@ var updateScroll = function(animationTime) {
 		$(this).css({"transform":"translate(" + newX + "px,0)", "transition":animationTime+"s"});
 	});
 }
+
+//scroll all images to their correct positions
+var updateScroll2 = function(animationTime) {
+	$(".object").each(function() {
+		offset = parseInt($(this).attr("offset"));
+		newX = (offset-scrollX);
+		$(this).css({"transform":"translate(" + newX + "px,0)", "transition":animationTime+"s", "transition-timing-function":"linear"});
+	});
+}
+
 
 //add images that will be visible in shorthand
 var autoAddImages = function(offset) {
@@ -238,7 +282,6 @@ var autoRemoveImages = function() {
 	}
 	while (scrollX >= (colMin+3)*grid) {
 		colMin++;
-		console.log("min++: " + colMin);
 		idMin += 3;
 		$(".object").each(function() {
 			offset = parseInt($(this).attr("offset"));

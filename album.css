@@ -17,6 +17,13 @@ body {
 	-ms-user-select: none;
 	-user-select: none;
 }
+a {
+	color: #fff;
+	text-decoration: none;
+}
+a:hover {
+	color: #ddd;
+}
 
 .nav {
 	background-color: rgba(80,80,80,0.3);
@@ -58,7 +65,7 @@ body {
 }
 .wall {
 	transition-delay: 0.1s;
-	transition: 0.5s;
+	transition: 0.7s;
 	width: 90%;
 	height: 100%;
 	display: flex;
@@ -89,13 +96,14 @@ body {
 	height: 20px;
 }
 .menuitem {
-	background-color: #050;
-	opacity: 0.5;
 	width: 150px;
 	height: 100%;
 	margin: 0px 10px;
 	position: relative;
-	display: inline-block;	
+	display: inline-block;
+	vertical-align: bottom;
+	color: #fff;
+	padding-left: 10px;
 }
 .object {
 	perspective: 600px;
@@ -104,7 +112,6 @@ body {
 	margin: 0px 10px;
 	position: absolute;
 	text-align: center;
-	background-color: #222;
 }
 .cleft {
 	left: -200px;
